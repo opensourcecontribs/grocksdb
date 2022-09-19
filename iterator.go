@@ -125,6 +125,15 @@ func (iter *Iterator) Err() (err error) {
 	return
 }
 
+// Refresh returns nil if no errors happened during iteration, or the actual
+// error otherwise.
+func (iter *Iterator) Refresh() (err error) {
+	var cErr *C.char
+	C.rocksdb_iter_refresh(iter.c, &cErr)
+	err = fromCError(cErr)
+	return
+}
+
 // Close closes the iterator.
 func (iter *Iterator) Close() {
 	C.rocksdb_iter_destroy(iter.c)

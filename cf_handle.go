@@ -20,6 +20,18 @@ func (h *ColumnFamilyHandle) Destroy() {
 	h.c = nil
 }
 
+// GetID returns the id of the column family.
+func (h *ColumnFamilyHandle) GetID() uint32 {
+	return uint32(C.rocksdb_column_family_handle_get_id(h.c))
+}
+
+// GetName returns the name of the column family.
+func (h *ColumnFamilyHandle) GetName() string {
+	var nameSize C.size_t
+	name := C.rocksdb_column_family_handle_get_name(h.c, &nameSize)
+	return C.GoString(name)
+}
+
 // ColumnFamilyHandles represents collection of multiple column family handle.
 type ColumnFamilyHandles []*ColumnFamilyHandle
 

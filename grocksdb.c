@@ -63,3 +63,17 @@ rocksdb_slicetransform_t* gorocksdb_slicetransform_create(uintptr_t idx) {
     	(unsigned char (*)(void*, const char*, size_t))(gorocksdb_slicetransform_in_range),
     	(const char* (*)(void*))(gorocksdb_slicetransform_name));
 }
+
+/* Update Timestamp */
+
+size_t get_ts_size_wrapper(void* h, uint32_t cf_id) {
+	return gorocksdb_get_ts_size((uintptr_t)h, cf_id);
+}
+
+void gorocksdb_writebatch_update_timestamps(uintptr_t state, rocksdb_writebatch_t* wb, const char* ts, size_t tslen, char** errptr) {
+    rocksdb_writebatch_update_timestamps(wb, ts, tslen, (void*)state, get_ts_size_wrapper, errptr);
+}
+
+void gorocksdb_writebatch_wi_update_timestamps(uintptr_t state, rocksdb_writebatch_wi_t* wbwi, const char* ts, size_t tslen, char** errptr) {
+    rocksdb_writebatch_wi_update_timestamps(wbwi, ts, tslen, (void*)state, get_ts_size_wrapper, errptr);
+}

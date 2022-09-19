@@ -1506,34 +1506,54 @@ func (db *DB) GetLiveFilesMetaData() []LiveFileMetadata {
 
 // CompactRange runs a manual compaction on the Range of keys given. This is
 // not likely to be needed for typical usage.
-func (db *DB) CompactRange(r Range) {
+func (db *DB) CompactRange(r Range) (err error) {
+	var cErr *C.char
+
 	cStart := byteToChar(r.Start)
 	cLimit := byteToChar(r.Limit)
-	C.rocksdb_compact_range(db.c, cStart, C.size_t(len(r.Start)), cLimit, C.size_t(len(r.Limit)))
+	C.rocksdb_compact_range(db.c, cStart, C.size_t(len(r.Start)), cLimit, C.size_t(len(r.Limit)), &cErr)
+
+	err = fromCError(cErr)
+	return
 }
 
 // CompactRangeCF runs a manual compaction on the Range of keys given on the
 // given column family. This is not likely to be needed for typical usage.
-func (db *DB) CompactRangeCF(cf *ColumnFamilyHandle, r Range) {
+func (db *DB) CompactRangeCF(cf *ColumnFamilyHandle, r Range) (err error) {
+	var cErr *C.char
+
 	cStart := byteToChar(r.Start)
 	cLimit := byteToChar(r.Limit)
-	C.rocksdb_compact_range_cf(db.c, cf.c, cStart, C.size_t(len(r.Start)), cLimit, C.size_t(len(r.Limit)))
+	C.rocksdb_compact_range_cf(db.c, cf.c, cStart, C.size_t(len(r.Start)), cLimit, C.size_t(len(r.Limit)), &cErr)
+
+	err = fromCError(cErr)
+	return
 }
 
 // CompactRangeOpt runs a manual compaction on the Range of keys given with provided options. This is
 // not likely to be needed for typical usage.
-func (db *DB) CompactRangeOpt(r Range, opt *CompactRangeOptions) {
+func (db *DB) CompactRangeOpt(r Range, opt *CompactRangeOptions) (err error) {
+	var cErr *C.char
+
 	cStart := byteToChar(r.Start)
 	cLimit := byteToChar(r.Limit)
-	C.rocksdb_compact_range_opt(db.c, opt.c, cStart, C.size_t(len(r.Start)), cLimit, C.size_t(len(r.Limit)))
+	C.rocksdb_compact_range_opt(db.c, opt.c, cStart, C.size_t(len(r.Start)), cLimit, C.size_t(len(r.Limit)), &cErr)
+
+	err = fromCError(cErr)
+	return
 }
 
 // CompactRangeCFOpt runs a manual compaction on the Range of keys given on the
 // given column family with provided options. This is not likely to be needed for typical usage.
-func (db *DB) CompactRangeCFOpt(cf *ColumnFamilyHandle, r Range, opt *CompactRangeOptions) {
+func (db *DB) CompactRangeCFOpt(cf *ColumnFamilyHandle, r Range, opt *CompactRangeOptions) (err error) {
+	var cErr *C.char
+
 	cStart := byteToChar(r.Start)
 	cLimit := byteToChar(r.Limit)
-	C.rocksdb_compact_range_cf_opt(db.c, cf.c, opt.c, cStart, C.size_t(len(r.Start)), cLimit, C.size_t(len(r.Limit)))
+	C.rocksdb_compact_range_cf_opt(db.c, cf.c, opt.c, cStart, C.size_t(len(r.Start)), cLimit, C.size_t(len(r.Limit)), &cErr)
+
+	err = fromCError(cErr)
+	return
 }
 
 // SuggestCompactRange only for leveled compaction.
