@@ -25,3 +25,11 @@ extern void gorocksdb_mergeoperator_delete_value(void* state, const char* v, siz
 /* Slice Transform */
 
 extern rocksdb_slicetransform_t* gorocksdb_slicetransform_create(uintptr_t idx);
+
+/* Update Timestamp */
+
+extern size_t get_ts_size_wrapper(void* h, uint32_t cf_id);
+
+extern void gorocksdb_writebatch_update_timestamps(uintptr_t state, rocksdb_writebatch_t* wb, const char* ts, size_t tslen, char** errptr);
+
+extern void gorocksdb_writebatch_wi_update_timestamps(uintptr_t state, rocksdb_writebatch_wi_t* wbwi, const char* ts, size_t tslen, char** errptr);

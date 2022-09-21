@@ -1,8 +1,13 @@
 package grocksdb
 
 // #include "rocksdb/c.h"
+// #include "grocksdb.h"
 import "C"
-import "unsafe"
+
+import (
+	"runtime/cgo"
+	"unsafe"
+)
 
 // WriteBatchWI is a batching with index of Puts, Merges and Deletes to implement read-your-own-write.
 // See also: https://rocksdb.org/blog/2015/02/27/write-batch-with-index.html
@@ -16,53 +21,89 @@ type WriteBatchWI struct {
 //     the same key as previously, so iterator will never
 //     show two entries with the same key.
 func NewWriteBatchWI(reservedBytes uint, overwriteKeys bool) *WriteBatchWI {
-	return NewNativeWriteBatchWI(C.rocksdb_writebatch_wi_create(C.size_t(reservedBytes), boolToChar(overwriteKeys)))
+	cWB := C.rocksdb_writebatch_wi_create(C.size_t(reservedBytes), boolToChar(overwriteKeys))
+	return NewNativeWriteBatchWI(cWB)
 }
 
 // NewNativeWriteBatchWI create a WriteBatchWI object.
 func NewNativeWriteBatchWI(c *C.rocksdb_writebatch_wi_t) *WriteBatchWI {
-	return &WriteBatchWI{c}
+	return &WriteBatchWI{c: c}
+}
+
+// NewWriteBatchWIWithParams creates a write batch from a serialized WriteBatch.
+func NewWriteBatchWIWithParams(cmp *Comparator, reservedBytes uint64, overwriteKey bool, maxBytes, protectionBytesPerKey uint64) *WriteBatchWI {
+	return NewNativeWriteBatchWI(
+		C.rocksdb_writebatch_wi_create_with_params(
+			cmp.c,
+			C.size_t(reservedBytes),
+			boolToChar(overwriteKey),
+			C.size_t(maxBytes),
+			C.size_t(protectionBytesPerKey),
+		),
+	)
+}
+
+func (wb *WriteBatchWI) UnsafeNative() unsafe.Pointer {
+	return unsafe.Pointer(wb.c)
 }
 
 // Put queues a key-value pair.
-func (wb *WriteBatchWI) Put(key, value []byte) {
+func (wb *WriteBatchWI) Put(key, value []byte) (err error) {
+	var cErr *C.char
 	cKey := byteToChar(key)
 	cValue := byteToChar(value)
-	C.rocksdb_writebatch_wi_put(wb.c, cKey, C.size_t(len(key)), cValue, C.size_t(len(value)))
+	C.rocksdb_writebatch_wi_put_v2(wb.c, cKey, C.size_t(len(key)), cValue, C.size_t(len(value)), &cErr)
+	err = fromCError(cErr)
+	return
 }
 
 // PutCF queues a key-value pair in a column family.
-func (wb *WriteBatchWI) PutCF(cf *ColumnFamilyHandle, key, value []byte) {
+func (wb *WriteBatchWI) PutCF(cf *ColumnFamilyHandle, key, value []byte) (err error) {
+	var cErr *C.char
 	cKey := byteToChar(key)
 	cValue := byteToChar(value)
-	C.rocksdb_writebatch_wi_put_cf(wb.c, cf.c, cKey, C.size_t(len(key)), cValue, C.size_t(len(value)))
+	C.rocksdb_writebatch_wi_put_cf_v2(wb.c, cf.c, cKey, C.size_t(len(key)), cValue, C.size_t(len(value)), &cErr)
+	err = fromCError(cErr)
+	return
 }
 
 // PutLogData appends a blob of arbitrary size to the records in this batch.
-func (wb *WriteBatchWI) PutLogData(blob []byte) {
+func (wb *WriteBatchWI) PutLogData(blob []byte) (err error) {
+	var cErr *C.char
 	cBlob := byteToChar(blob)
-	C.rocksdb_writebatch_wi_put_log_data(wb.c, cBlob, C.size_t(len(blob)))
+	C.rocksdb_writebatch_wi_put_log_data_v2(wb.c, cBlob, C.size_t(len(blob)), &cErr)
+	err = fromCError(cErr)
+	return
 }
 
 // Merge queues a merge of "value" with the existing value of "key".
-func (wb *WriteBatchWI) Merge(key, value []byte) {
+func (wb *WriteBatchWI) Merge(key, value []byte) (err error) {
+	var cErr *C.char
 	cKey := byteToChar(key)
 	cValue := byteToChar(value)
-	C.rocksdb_writebatch_wi_merge(wb.c, cKey, C.size_t(len(key)), cValue, C.size_t(len(value)))
+	C.rocksdb_writebatch_wi_merge_v2(wb.c, cKey, C.size_t(len(key)), cValue, C.size_t(len(value)), &cErr)
+	err = fromCError(cErr)
+	return
 }
 
 // MergeCF queues a merge of "value" with the existing value of "key" in a
 // column family.
-func (wb *WriteBatchWI) MergeCF(cf *ColumnFamilyHandle, key, value []byte) {
+func (wb *WriteBatchWI) MergeCF(cf *ColumnFamilyHandle, key, value []byte) (err error) {
+	var cErr *C.char
 	cKey := byteToChar(key)
 	cValue := byteToChar(value)
-	C.rocksdb_writebatch_wi_merge_cf(wb.c, cf.c, cKey, C.size_t(len(key)), cValue, C.size_t(len(value)))
+	C.rocksdb_writebatch_wi_merge_cf_v2(wb.c, cf.c, cKey, C.size_t(len(key)), cValue, C.size_t(len(value)), &cErr)
+	err = fromCError(cErr)
+	return
 }
 
 // Delete queues a deletion of the data at key.
-func (wb *WriteBatchWI) Delete(key []byte) {
+func (wb *WriteBatchWI) Delete(key []byte) (err error) {
+	var cErr *C.char
 	cKey := byteToChar(key)
-	C.rocksdb_writebatch_wi_delete(wb.c, cKey, C.size_t(len(key)))
+	C.rocksdb_writebatch_wi_delete_v2(wb.c, cKey, C.size_t(len(key)), &cErr)
+	err = fromCError(cErr)
+	return
 }
 
 // SingleDelete removes the database entry for "key". Requires that the key exists
@@ -81,36 +122,51 @@ func (wb *WriteBatchWI) Delete(key []byte) {
 // Merges can result in undefined behavior.
 //
 // Note: consider setting options.sync = true.
-func (wb *WriteBatchWI) SingleDelete(key []byte) {
+func (wb *WriteBatchWI) SingleDelete(key []byte) (err error) {
+	var cErr *C.char
 	cKey := byteToChar(key)
-	C.rocksdb_writebatch_wi_singledelete(wb.c, cKey, C.size_t(len(key)))
+	C.rocksdb_writebatch_wi_singledelete_v2(wb.c, cKey, C.size_t(len(key)), &cErr)
+	err = fromCError(cErr)
+	return
 }
 
 // DeleteCF queues a deletion of the data at key in a column family.
-func (wb *WriteBatchWI) DeleteCF(cf *ColumnFamilyHandle, key []byte) {
+func (wb *WriteBatchWI) DeleteCF(cf *ColumnFamilyHandle, key []byte) (err error) {
+	var cErr *C.char
 	cKey := byteToChar(key)
-	C.rocksdb_writebatch_wi_delete_cf(wb.c, cf.c, cKey, C.size_t(len(key)))
+	C.rocksdb_writebatch_wi_delete_cf_v2(wb.c, cf.c, cKey, C.size_t(len(key)), &cErr)
+	err = fromCError(cErr)
+	return
 }
 
 // SingleDeleteCF same as SingleDelete but specific column family
-func (wb *WriteBatchWI) SingleDeleteCF(cf *ColumnFamilyHandle, key []byte) {
+func (wb *WriteBatchWI) SingleDeleteCF(cf *ColumnFamilyHandle, key []byte) (err error) {
+	var cErr *C.char
 	cKey := byteToChar(key)
-	C.rocksdb_writebatch_wi_singledelete_cf(wb.c, cf.c, cKey, C.size_t(len(key)))
+	C.rocksdb_writebatch_wi_singledelete_cf_v2(wb.c, cf.c, cKey, C.size_t(len(key)), &cErr)
+	err = fromCError(cErr)
+	return
 }
 
 // DeleteRange deletes keys that are between [startKey, endKey)
-func (wb *WriteBatchWI) DeleteRange(startKey []byte, endKey []byte) {
+func (wb *WriteBatchWI) DeleteRange(startKey []byte, endKey []byte) (err error) {
+	var cErr *C.char
 	cStartKey := byteToChar(startKey)
 	cEndKey := byteToChar(endKey)
-	C.rocksdb_writebatch_wi_delete_range(wb.c, cStartKey, C.size_t(len(startKey)), cEndKey, C.size_t(len(endKey)))
+	C.rocksdb_writebatch_wi_delete_range_v2(wb.c, cStartKey, C.size_t(len(startKey)), cEndKey, C.size_t(len(endKey)), &cErr)
+	err = fromCError(cErr)
+	return
 }
 
 // DeleteRangeCF deletes keys that are between [startKey, endKey) and
 // belong to a given column family
-func (wb *WriteBatchWI) DeleteRangeCF(cf *ColumnFamilyHandle, startKey []byte, endKey []byte) {
+func (wb *WriteBatchWI) DeleteRangeCF(cf *ColumnFamilyHandle, startKey []byte, endKey []byte) (err error) {
+	var cErr *C.char
 	cStartKey := byteToChar(startKey)
 	cEndKey := byteToChar(endKey)
-	C.rocksdb_writebatch_wi_delete_range_cf(wb.c, cf.c, cStartKey, C.size_t(len(startKey)), cEndKey, C.size_t(len(endKey)))
+	C.rocksdb_writebatch_wi_delete_range_cf_v2(wb.c, cf.c, cStartKey, C.size_t(len(startKey)), cEndKey, C.size_t(len(endKey)), &cErr)
+	err = fromCError(cErr)
+	return
 }
 
 // Data returns the serialized version of this batch.
@@ -253,6 +309,19 @@ func (wb *WriteBatchWI) NewIteratorWithBase(db *DB, baseIter *Iterator) *Iterato
 func (wb *WriteBatchWI) NewIteratorWithBaseCF(db *DB, baseIter *Iterator, cf *ColumnFamilyHandle) *Iterator {
 	cIter := C.rocksdb_writebatch_wi_create_iterator_with_base_cf(wb.c, baseIter.c, cf.c)
 	return NewNativeIterator(unsafe.Pointer(cIter))
+}
+
+func (wb *WriteBatchWI) UpdateTimestamps(ts []byte, tsSizeFn func(cfID uint32) uint64) (err error) {
+	var cErr *C.char
+
+	cTs := byteToChar(ts)
+
+	h := cgo.NewHandle(tsSizeFn)
+	C.gorocksdb_writebatch_wi_update_timestamps(C.uintptr_t(h), wb.c, cTs, C.size_t(len(ts)), &cErr)
+	h.Delete()
+
+	err = fromCError(cErr)
+	return
 }
 
 // Clear removes all the enqueued Put and Deletes.

@@ -31,7 +31,7 @@ type Iterator struct {
 
 // NewNativeIterator creates a Iterator object.
 func NewNativeIterator(c unsafe.Pointer) *Iterator {
-	return &Iterator{(*C.rocksdb_iterator_t)(c)}
+	return &Iterator{c: (*C.rocksdb_iterator_t)(c)}
 }
 
 // Valid returns false only when an Iterator has iterated past either the
@@ -121,6 +121,15 @@ func (iter *Iterator) SeekForPrev(key []byte) {
 func (iter *Iterator) Err() (err error) {
 	var cErr *C.char
 	C.rocksdb_iter_get_error(iter.c, &cErr)
+	err = fromCError(cErr)
+	return
+}
+
+// Refresh returns nil if no errors happened during iteration, or the actual
+// error otherwise.
+func (iter *Iterator) Refresh() (err error) {
+	var cErr *C.char
+	C.rocksdb_iter_refresh(iter.c, &cErr)
 	err = fromCError(cErr)
 	return
 }
